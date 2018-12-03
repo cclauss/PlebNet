@@ -23,7 +23,8 @@ class QTable:
         for provider_of in self.providers_offers:
             prov = {}
             environment_arr = {}
-            for provider_offer in self.providers_offers:
+            for i, provider_name in enumerate(self.providers_offers):
+                provider_offer = self.providers_offers[provider_name]
                 prov[provider_offer["Name"]] = self.calculate_measure(provider_offer)
                 environment_arr[provider_offer["Name"]] = 0
             self.qtable[provider_of["Name"]] = prov
@@ -52,9 +53,13 @@ class QTable:
         self.update_environment(curr_provider, status)
 
         for i, provider_offer in enumerate(self.providers_offers):
-            self.qtable[provider_offer][curr_provider] = self.qtable[provider_offer][
-                                                             1] + self.learning_rate * self.max_action_value(
-                provider_offer)
+            for j, provider_of in enumerate(self.providers_offers):
+                learning_compound = (self.environment[provider_offer][provider_of]\
+                                                            + self.discount * self.max_action_value(provider_offer) \
+                                                            - self.qtable[provider_offer][provider_of])
+
+                self.qtable[provider_offer][provider_of] = self.qtable[provider_offer][provider_of][1]\
+                                                           + self.learning_rate * learning_compound
 
     def update_environment(self, provider, status):
 
@@ -92,12 +97,11 @@ class QTable:
         """
         config_dir = user_config_dir()
         filename = os.path.join(config_dir, 'QTable.json')
-        to_save_var={
+        to_save_var = {
             "environment": self.environment,
             "qtable": self.qtable,
             "providers_offers": self.providers_offers
 
-                     }
+        }
         with open(filename, 'w') as json_file:
             json.dump(to_save_var, json_file)
-
