@@ -11,8 +11,9 @@ class QTable:
     environment_lr = 0.4
     discount = 0.05
     qtable = {}
-    environment = []
+    environment = {}
     providers_offers = []
+    self_state = ""
 
     def __init__(self):
         pass
@@ -23,8 +24,7 @@ class QTable:
         for provider_of in self.providers_offers:
             prov = {}
             environment_arr = {}
-            for i, provider_name in enumerate(self.providers_offers):
-                provider_offer = self.providers_offers[provider_name]
+            for provider_offer in self.providers_offers:
                 prov[provider_offer["Name"]] = self.calculate_measure(provider_offer)
                 environment_arr[provider_offer["Name"]] = 0
             self.qtable[provider_of["Name"]] = prov
@@ -32,48 +32,47 @@ class QTable:
 
     @staticmethod
     def calculate_measure(provider_offer):
-        return float(provider_offer["Price"]) * float(provider_offer["Connection"]) * float(provider_offer["Memory"])
+        return 1/(100*float(provider_offer["Price"])) * float(provider_offer["Connection"]) * float(provider_offer["Memory"])
 
     def init_providers_offers(self, providers):
-        for provider in providers:
-            options = cloudomate_controller.options(provider)
-            print(options)
+        for i, id in enumerate(providers):
+            options = cloudomate_controller.options(providers[id])
             for i, option in enumerate(options):
                 element = {
-                    "ProviderName": provider.get_metadata()[0] + str(i),
+                    "ProviderName": providers[id].get_metadata()[0],
                     "Name": option.name,
                     "Connection": option.connection,
                     "Price": option.price,
                     "Memory": option.memory
                 }
-                print(element)
                 self.providers_offers.append(element)
 
     def update_values(self, curr_provider, status=False):
         self.update_environment(curr_provider, status)
 
-        for i, provider_offer in enumerate(self.providers_offers):
-            for j, provider_of in enumerate(self.providers_offers):
-                learning_compound = (self.environment[provider_offer][provider_of]\
-                                                            + self.discount * self.max_action_value(provider_offer) \
-                                                            - self.qtable[provider_offer][provider_of])
+        for provider_offer in self.providers_offers:
+            for provider_of in self.providers_offers:
+                learning_compound = self.environment[provider_offer["Name"]][provider_of["Name"]] \
+                                    + self.discount * self.max_action_value(provider_offer) \
+                                    - self.qtable[provider_offer["Name"]][provider_of["Name"]]
 
-                self.qtable[provider_offer][provider_of] = self.qtable[provider_offer][provider_of][1]\
-                                                           + self.learning_rate * learning_compound
+                self.qtable[provider_offer["Name"]][provider_of["Name"]] = \
+                    self.qtable[provider_offer["Name"]][provider_of["Name"]] \
+                    + self.learning_rate * learning_compound
 
     def update_environment(self, provider, status):
 
         for i, actions in enumerate(self.environment):
             if not status:
-                self.environment[actions][provider] -= self.environment_lr
+                self.environment[actions][provider] = self.environment[actions][provider] - self.environment_lr
             else:
                 self.environment[actions][provider] += self.environment_lr
 
     def max_action_value(self, provider):
         max_value = -100000
         for i, provider_offer in enumerate(self.qtable):
-            if max_value < self.qtable[provider_offer][provider]:
-                max_value = self.qtable[provider_offer][provider]
+            if max_value < self.qtable[provider_offer][provider["Name"]]:
+                max_value = self.qtable[provider_offer][provider["Name"]]
         return max_value
 
     def read_dictionary(self, providers=None):
@@ -90,6 +89,24 @@ class QTable:
                 self.environment = data['environment']
                 self.qtable = data['qtable']
                 self.providers_offers = data['providers_offers']
+
+    def choose_best_option(self):
+        candidate = {"OptionName": "", "ProviderName": "", "Score": -1000}
+        for i, offer_name in enumerate(self.qtable):
+            if candidate["Score"] < self.qtable[self.self_state][offer_name]:
+                candidate["OptionName"] = offer_name
+                candidate["Score"] = self.qtable[self.self_state][offer_name]
+                candidate["ProviderName"] = self.find_provider(offer_name)
+        return candidate["ProviderName"], candidate["OptionName"]
+
+    def find_provider(self, offer_name):
+        for offers in self.providers_offers:
+            if offers["Name"] == offer_name:
+                return offers["ProviderName"]
+        raise ValueError("Can't find provider for " + offer_name)
+
+    def set_self_state(self, self_state):
+        self.self_state = self_state
 
     def write_dictionary(self):
         """
