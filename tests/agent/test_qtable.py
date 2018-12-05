@@ -11,11 +11,12 @@ class TestQTable(unittest.TestCase):
 
     def setUp(self):
         self.qtable = QTable()
-        self.providers = cloudomate_controller.get_vps_providers()
+        self.providers = copy.deepcopy(cloudomate_controller.get_vps_providers())
         del self.providers["proxhost"]
 
     def tearDown(self):
-        pass
+        del self.qtable
+        del self.providers
 
     def test_init_providers(self):
         assert (len(self.qtable.providers_offers) == 0)
@@ -30,7 +31,7 @@ class TestQTable(unittest.TestCase):
         assert (len(self.qtable.qtable) > 0)
 
     def test_calculate_measure(self):
-        provider_offer = {"Price": 5, "Connection": 3, "Memory": 2}
+        provider_offer = {"price": 5, "connection": 3, "memory": 2}
         assert (self.qtable.calculate_measure(provider_offer) == 0.012)
 
     def test_update_environment(self):
@@ -61,7 +62,7 @@ class TestQTable(unittest.TestCase):
         best_option = self.qtable.choose_best_option()
         print(best_option)
         assert (best_option[0] == "BlueAngelHost")
-        assert (best_option[1] == "KVM-6")
+        assert (best_option[1] == "Standard Plan ")
 
     def test_find_provider(self):
         self.qtable.set_self_state("Advanced")
